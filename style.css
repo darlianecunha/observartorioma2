@@ -1,0 +1,15 @@
+body {
+    background-color: white;
+    color: black;
+}
+h1, h2 {
+    color: #003366;
+    text-align: center;
+}
+.stDataFrame, .stTable {
+    background-color: white;
+    color: black;
+}
+.navio {
+    text-align: center;
+}
