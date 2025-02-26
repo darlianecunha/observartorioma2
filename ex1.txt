@@ -1,0 +1,45 @@
+
+---
+
+## **📌 6. Arquivo `.github/workflows/deploy.yml`**
+Este arquivo configura o **deploy automático** no **shinyapps.io** sempre que você fizer um `git push`.
+
+```yaml
+name: Deploy Shiny App to shinyapps.io
+
+on:
+  push:
+    branches:
+      - main  # Ou outra branch que desejar monitorar
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          pip install rsconnect-python
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Authenticate rsconnect
+        run: |
+          rsconnect add \
+            --account ${{ secrets.SHINYAPPS_ACCOUNT }} \
+            --name ${{ secrets.SHINYAPPS_NAME }} \
+            --token ${{ secrets.SHINYAPPS_TOKEN }} \
+            --secret ${{ secrets.SHINYAPPS_SECRET }}
+
+      - name: Deploy Shiny App
+        run: |
+          rsconnect deploy shiny . \
+            --name ${{ secrets.SHINYAPPS_NAME }} \
+            --title meu-shiny-app
