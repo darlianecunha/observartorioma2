@@ -1,89 +1,86 @@
-import streamlit as st
+from shiny import App, ui, render
 import pandas as pd
 import plotly.express as px
 import os
 
-# Carregar estilos CSS
-with open("style.css") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+# Interface do Usuário (UI)
+app_ui = ui.page_fluid(
+    ui.h1("Dashboard de Movimentação Portuária - Maranhão 2010 a 2023"),
+    ui.input_select("ano", "Selecione o Ano", choices=[]),
+    ui.input_select("tipo_instalacao", "Selecione o Tipo de Instalação", choices=["Todos"]),
+    ui.input_select("nome_instalacao", "Selecione a Instalação", choices=["Todos"]),
+    ui.input_select("perfil_carga", "Selecione o Perfil da Carga", choices=["Todos"]),
+    ui.input_select("sentido", "Selecione o Sentido", choices=["Todos"]),
+    ui.input_select("tipo_navegacao", "Selecione o Tipo de Navegação", choices=["Todos"]),
+    ui.input_select("nomenclatura_simplificada", "Selecione a Nomenclatura Simplificada", choices=["Todos"]),
+    ui.output_plot("grafico"),
+    ui.output_data_frame("tabela"),
+    ui.output_text_verbatim("total_movimentacao")
+)
 
-# Adicionando um ícone de navio no topo
-st.markdown("""
-<div class='navio'>
-    <img src='https://cdn-icons-png.flaticon.com/128/2866/2866321.png' width='80'>
-</div>
-""", unsafe_allow_html=True)
+# Lógica do Servidor
+def server(input, output, session):
 
-# Cabeçalho do Dashboard
-st.markdown("<h1>Dashboard de Movimentação Portuária - Maranhão 2010 a 2023</h1>", unsafe_allow_html=True)
+    # Carregar dados
+    def load_data():
+        file_path = "movMA2023.xlsx"
+        if not os.path.exists(file_path):
+            return pd.DataFrame()
 
-# Carregar os dados
-@st.cache_data
-def load_data():
-    file_path = "movMA2023.xlsx"
-    if not os.path.exists(file_path):
-        st.error(f"Erro: Arquivo {file_path} não encontrado!")
-        return pd.DataFrame()
-    
-    df = pd.read_excel(file_path)
-    df.rename(columns={
-        'Ano': 'ano',
-        'Tipo de instalação': 'tipo_instalacao',
-        'Nome da Instalação': 'nome_instalacao',
-        'Perfil da Carga': 'perfil_carga',
-        'Nomenclatura Simplificada': 'nomenclatura_simplificada',
-        'Sentido': 'sentido',
-        'Tipo Navegação': 'tipo_navegacao',
-        'Total de Movimentação Portuária\nem milhões x t': 'movimentacao_milhoes_t'
-    }, inplace=True)
-    df["ano"] = df["ano"].astype(str)
-    return df
+        df = pd.read_excel(file_path)
+        df.rename(columns={
+            'Ano': 'ano',
+            'Tipo de instalação': 'tipo_instalacao',
+            'Nome da Instalação': 'nome_instalacao',
+            'Perfil da Carga': 'perfil_carga',
+            'Nomenclatura Simplificada': 'nomenclatura_simplificada',
+            'Sentido': 'sentido',
+            'Tipo Navegação': 'tipo_navegacao',
+            'Total de Movimentação Portuária\nem milhões x t': 'movimentacao_milhoes_t'
+        }, inplace=True)
 
-df = load_data()
+        df["ano"] = df["ano"].astype(str)
+        return df
 
-# Filtros
-st.sidebar.header("Filtros")
-ano_selecionado = st.sidebar.selectbox("Selecione o Ano", sorted(df["ano"].dropna().unique()), index=0)
-tipo_instalacao_selecionado = st.sidebar.selectbox("Selecione o Tipo de Instalação", ["Todos"] + list(df["tipo_instalacao"].dropna().unique()), index=0)
-nome_instalacao_selecionado = st.sidebar.selectbox("Selecione a Instalação", ["Todos"] + list(df["nome_instalacao"].dropna().unique()), index=0)
-perfil_carga_selecionado = st.sidebar.selectbox("Selecione o Perfil da Carga", ["Todos"] + list(df["perfil_carga"].dropna().unique()), index=0)
-sentido_selecionado = st.sidebar.selectbox("Selecione o Sentido", ["Todos"] + list(df["sentido"].dropna().unique()), index=0)
-tipo_navegacao_selecionado = st.sidebar.selectbox("Selecione o Tipo de Navegação", ["Todos"] + list(df["tipo_navegacao"].dropna().unique()), index=0)
-nomenclatura_simplificada_selecionado = st.sidebar.selectbox("Selecione a Nomenclatura Simplificada", ["Todos"] + list(df["nomenclatura_simplificada"].dropna().unique()), index=0)
+    df = load_data()
 
-# Aplicar filtros
-df_filtered = df[df["ano"] == ano_selecionado]
-if tipo_instalacao_selecionado != "Todos":
-    df_filtered = df_filtered[df_filtered["tipo_instalacao"] == tipo_instalacao_selecionado]
-if nome_instalacao_selecionado != "Todos":
-    df_filtered = df_filtered[df_filtered["nome_instalacao"] == nome_instalacao_selecionado]
-if perfil_carga_selecionado != "Todos":
-    df_filtered = df_filtered[df_filtered["perfil_carga"] == perfil_carga_selecionado]
-if sentido_selecionado != "Todos":
-    df_filtered = df_filtered[df_filtered["sentido"] == sentido_selecionado]
-if tipo_navegacao_selecionado != "Todos":
-    df_filtered = df_filtered[df_filtered["tipo_navegacao"] == tipo_navegacao_selecionado]
-if nomenclatura_simplificada_selecionado != "Todos":
-    df_filtered = df_filtered[df_filtered["nomenclatura_simplificada"] == nomenclatura_simplificada_selecionado]
+    # Atualizar opções dos filtros dinamicamente
+    @render.ui
+    def ano():
+        return ui.input_select("ano", "Selecione o Ano", choices=sorted(df["ano"].dropna().unique()), selected=df["ano"].iloc[0])
 
-# Criar gráfico interativo com Plotly
-if not df_filtered.empty:
-    fig = px.bar(
-        df_filtered,
-        x="nome_instalacao",
-        y="movimentacao_milhoes_t",
-        color="perfil_carga",
-        title="Movimentação por Instalação",
-        labels={"movimentacao_milhoes_t": "Milhões de Toneladas"}
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    @render.ui
+    def tipo_instalacao():
+        return ui.input_select("tipo_instalacao", "Selecione o Tipo de Instalação", choices=["Todos"] + list(df["tipo_instalacao"].dropna().unique()))
 
-# Exibir tabela de dados agregados
-st.write("### Movimentação Total por Porto")
-st.dataframe(df_filtered, width=800)
+    # Aplicar filtros
+    @render.data_frame
+    def tabela():
+        df_filtered = df[df["ano"] == input.ano()]
+        if input.tipo_instalacao() != "Todos":
+            df_filtered = df_filtered[df_filtered["tipo_instalacao"] == input.tipo_instalacao()]
+        return df_filtered[["nome_instalacao", "movimentacao_milhoes_t"]]
 
-# Crédito
-st.write("Fonte: Estatístico Aquaviário ANTAQ")
-st.markdown("<p><strong>Ferramenta desenvolvida para o Observatório Portuário com Financiamento do Itaqui </strong></p>", unsafe_allow_html=True)
+    # Criar gráfico
+    @render.plot
+    def grafico():
+        df_filtered = df[df["ano"] == input.ano()]
+        if input.tipo_instalacao() != "Todos":
+            df_filtered = df_filtered[df_filtered["tipo_instalacao"] == input.tipo_instalacao()]
 
+        fig = px.bar(
+            df_filtered,
+            x="nome_instalacao",
+            y="movimentacao_milhoes_t",
+            color="perfil_carga",
+            title="Movimentação por Instalação",
+            labels={"movimentacao_milhoes_t": "Milhões de Toneladas"}
+        )
+        return fig
 
+    @render.text
+    def total_movimentacao():
+        return f"Movimentação Total: {df['movimentacao_milhoes_t'].sum():,.3f} milhões de toneladas"
+
+# Criando o App
+app = App(app_ui, server)

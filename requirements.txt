@@ -1,5 +1,4 @@
-streamlit
+shiny
 pandas
-matplotlib
 plotly
 openpyxl
